@@ -1,0 +1,28 @@
+name: customer-support-ticket-resolution-environment
+description: >
+  OpenEnv-compatible reinforcement learning environment that simulates AI agents
+  handling customer support tickets across billing, technical, and general inquiry workflows.
+tasks:
+  - name: easy
+    description: Classification-only ticket routing.
+  - name: medium
+    description: Classification followed by a single correct resolution action.
+  - name: hard
+    description: Multi-step resolution with clarification and final resolution.
+action_space:
+  type: discrete
+  actions:
+    - categorize_billing
+    - categorize_technical
+    - categorize_general
+    - request_more_info
+    - refund_user
+    - escalate_to_human
+    - close_ticket
+observation_space:
+  type: json
+  schema:
+    ticket: string
+    history: list[string]
+    step_count: int
+
