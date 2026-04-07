@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, HTTPException
 
-from envs.support_env.models import Observation, ResetRequest, State, StepRequest, StepResult
-from envs.support_env.server.environment import SupportTicketEnvironment
+from envs.support_env.models import AppConfig, Observation, ResetRequest, State, StepRequest, StepResult
+from envs.support_env.server.environment import SupportEnvAPIWrapper
 
 
 app = FastAPI(
@@ -12,7 +14,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
-environment = SupportTicketEnvironment()
+app.state.config = AppConfig(
+    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    model_name=os.getenv("MODEL_NAME"),
+    api_base_url=os.getenv("API_BASE_URL"),
+    hf_token=os.getenv("HF_TOKEN"),
+)
+environment = SupportEnvAPIWrapper()
 
 
 @app.post("/reset", response_model=Observation)
@@ -36,4 +44,3 @@ def health() -> dict[str, str]:
 @app.get("/state", response_model=State | None)
 def get_state() -> State | None:
     return environment.state()
-

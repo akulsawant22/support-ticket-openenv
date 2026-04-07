@@ -207,3 +207,20 @@ class SupportTicketEnvironment:
             if step not in performed:
                 return False
         return True
+
+
+class SupportEnvAPIWrapper:
+    """Thin API wrapper that preserves existing environment behavior."""
+
+    def __init__(self, env: Optional[SupportTicketEnvironment] = None) -> None:
+        self._env = env or SupportTicketEnvironment()
+
+    def reset(self, task_name: TaskName = "easy", seed: int = 0) -> Observation:
+        return self._env.reset(task_name=task_name, seed=seed)
+
+    def step(self, action: Action | str) -> StepResult:
+        resolved_action = action if isinstance(action, Action) else Action(name=action)
+        return self._env.step(resolved_action)
+
+    def state(self) -> Optional[State]:
+        return self._env.state()

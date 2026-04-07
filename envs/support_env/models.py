@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 ActionName = Literal[
@@ -78,3 +78,18 @@ class StepRequest(BaseModel):
 
     action: Action
 
+    @field_validator("action", mode="before")
+    @classmethod
+    def coerce_action(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return {"name": value}
+        return value
+
+
+class AppConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    openai_api_key: Optional[str] = None
+    model_name: Optional[str] = None
+    api_base_url: Optional[str] = None
+    hf_token: Optional[str] = None
