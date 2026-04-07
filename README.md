@@ -1,3 +1,13 @@
+---
+title: Customer Support Ticket Resolution Environment
+emoji: "🧩"
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+short_description: OpenEnv-compatible customer support ticket environment
+---
+
 # Customer Support Ticket Resolution Environment
 
 Production-ready OpenEnv project for a hackathon-quality reinforcement learning
