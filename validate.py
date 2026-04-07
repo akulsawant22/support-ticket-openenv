@@ -1,20 +1,41 @@
 from __future__ import annotations
 
-from envs.support_env.models import Action
-from envs.support_env.server.environment import SupportTicketEnvironment
+import requests
 
 
 def main() -> None:
-    env = SupportTicketEnvironment()
+    base_url = "http://127.0.0.1:8000"
 
-    observation = env.reset(task_name="easy", seed=0)
-    print("reset:", observation.model_dump())
+    reset_response = requests.post(
+        f"{base_url}/reset",
+        json={"task_name": "easy", "seed": 0},
+        timeout=10,
+    )
+    assert reset_response.status_code == 200
+    reset_payload = reset_response.json()
+    assert isinstance(reset_payload.get("ticket"), str)
+    assert isinstance(reset_payload.get("history"), list)
+    assert isinstance(reset_payload.get("step_count"), int)
 
-    result = env.step(Action(name="categorize_billing", reasoning="validation check"))
-    print("step:", result.model_dump())
+    step_response = requests.post(
+        f"{base_url}/step",
+        json={"action": "categorize_billing"},
+        timeout=10,
+    )
+    assert step_response.status_code == 200
+    step_payload = step_response.json()
+    assert isinstance(step_payload.get("observation"), dict)
+    assert isinstance(step_payload.get("reward"), (int, float))
+    assert isinstance(step_payload.get("done"), bool)
+    assert isinstance(step_payload.get("info"), dict)
 
-    state = env.state()
-    print("state:", state.model_dump() if state else None)
+    state_response = requests.get(f"{base_url}/state", timeout=10)
+    assert state_response.status_code == 200
+    state_payload = state_response.json()
+    assert isinstance(state_payload, dict)
+    assert isinstance(state_payload.get("ticket"), str)
+    assert isinstance(state_payload.get("history"), list)
+    assert isinstance(state_payload.get("step_count"), int)
 
 
 if __name__ == "__main__":

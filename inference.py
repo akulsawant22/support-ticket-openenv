@@ -5,12 +5,16 @@ from typing import Any, Dict
 
 from openai import OpenAI
 
-from envs.support_env.models import Action, ActionName, Observation
+from envs.support_env.models import Action, ActionName
 from envs.support_env.server.environment import SupportTicketEnvironment
 from grader import grade_total_reward
 from tasks import TASKS
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url=os.getenv("API_BASE_URL", "https://api.openai.com/v1"),
+)
+model = os.getenv("MODEL_NAME", "gpt-4o-mini")
 
 ALLOWED_ACTIONS: tuple[ActionName, ...] = (
     "categorize_billing",
@@ -41,7 +45,7 @@ def get_action(observation: Dict[str, Any]) -> ActionName:
 
     try:
         response = client.chat.completions.create(
-            model=os.getenv("MODEL_NAME", "gpt-4o-mini"),
+            model=model,
             messages=messages,
             temperature=0,
         )
@@ -58,7 +62,7 @@ def get_action(observation: Dict[str, Any]) -> ActionName:
 def run_task(task_name: str, seed: int = 0) -> float:
     env = SupportTicketEnvironment()
     observation = env.reset(task_name=task_name, seed=seed)
-    print(f"[START] task={task_name} seed={seed} ticket={observation.ticket}")
+    print("[START]")
 
     done = False
 
@@ -66,26 +70,20 @@ def run_task(task_name: str, seed: int = 0) -> float:
         action_name = get_action(observation.model_dump())
         result = env.step(Action(name=action_name, reasoning="openai agent"))
         observation = result.observation
-        print(
-            f"[STEP] task={task_name} step={observation.step_count} "
-            f"action={action_name} reward={result.reward:.2f} done={result.done}"
-        )
+        print(f"[STEP] {action_name} {result.reward}")
         done = result.done
 
     final_state = env.state()
     if final_state is None:
         raise RuntimeError("Environment state missing after run.")
     score = grade_total_reward(final_state.total_reward)
-    print(f"[END] task={task_name} total_reward={final_state.total_reward:.2f} score={score:.2f}")
+    print(f"[END] {score}")
     return score
 
 
 def main() -> None:
-    scores = []
     for index, task_name in enumerate(TASKS):
-        scores.append(run_task(task_name=task_name, seed=index))
-    overall = round(sum(scores) / len(scores), 4)
-    print(f"[END] overall_score={overall:.2f}")
+        run_task(task_name=task_name, seed=index)
 
 
 if __name__ == "__main__":
