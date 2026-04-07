@@ -1,56 +1,58 @@
 from __future__ import annotations
 
-from typing import Dict, List
+import os
+from typing import Any, Dict
+
+from openai import OpenAI
 
 from envs.support_env.models import Action, ActionName, Observation
 from envs.support_env.server.environment import SupportTicketEnvironment
 from grader import grade_total_reward
 from tasks import TASKS
 
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-CATEGORY_RULES: Dict[str, ActionName] = {
-    "charged twice": "categorize_billing",
-    "invoice": "categorize_billing",
-    "password": "categorize_general",
-    "how do i": "categorize_general",
-    "crash": "categorize_technical",
-    "checkout": "categorize_technical",
-}
-
-
-RESOLUTION_RULES: Dict[str, ActionName] = {
-    "billing": "refund_user",
-    "technical": "escalate_to_human",
-    "general": "close_ticket",
-}
+ALLOWED_ACTIONS: tuple[ActionName, ...] = (
+    "categorize_billing",
+    "categorize_technical",
+    "categorize_general",
+    "request_more_info",
+    "refund_user",
+    "escalate_to_human",
+    "close_ticket",
+)
 
 
-def choose_category_action(ticket: str) -> ActionName:
-    normalized = ticket.lower()
-    for keyword, action in CATEGORY_RULES.items():
-        if keyword in normalized:
-            return action
-    return "categorize_general"
+def get_action(observation: Dict[str, Any]) -> ActionName:
+    messages = [
+        {
+            "role": "system",
+            "content": "You are an expert customer support AI agent. Always choose the BEST next action.",
+        },
+        {
+            "role": "user",
+            "content": (
+                f"ticket text: {observation['ticket']}\n"
+                f"step count: {observation['step_count']}\n"
+                f"allowed actions: {', '.join(ALLOWED_ACTIONS)}"
+            ),
+        },
+    ]
 
-
-def choose_follow_up_action(observation: Observation, performed: List[ActionName]) -> ActionName:
-    normalized = observation.ticket.lower()
-    category_action = choose_category_action(observation.ticket)
-
-    if category_action not in performed:
-        return category_action
-
-    inferred_category = {
-        "categorize_billing": "billing",
-        "categorize_technical": "technical",
-        "categorize_general": "general",
-    }[category_action]
-
-    needs_more_info = any(phrase in normalized for phrase in ("not sure", "old email", "did not help"))
-    if needs_more_info and "request_more_info" not in performed:
+    try:
+        response = client.chat.completions.create(
+            model=os.getenv("MODEL_NAME", "gpt-4o-mini"),
+            messages=messages,
+            temperature=0,
+        )
+        action = response.choices[0].message.content.strip()
+    except Exception:
         return "request_more_info"
 
-    return RESOLUTION_RULES[inferred_category]
+    normalized_action = action.strip()
+    if normalized_action not in ALLOWED_ACTIONS:
+        return "request_more_info"
+    return normalized_action
 
 
 def run_task(task_name: str, seed: int = 0) -> float:
@@ -59,12 +61,10 @@ def run_task(task_name: str, seed: int = 0) -> float:
     print(f"[START] task={task_name} seed={seed} ticket={observation.ticket}")
 
     done = False
-    performed: List[ActionName] = []
 
     while not done:
-        action_name = choose_follow_up_action(observation, performed)
-        performed.append(action_name)
-        result = env.step(Action(name=action_name, reasoning="rule-based baseline"))
+        action_name = get_action(observation.model_dump())
+        result = env.step(Action(name=action_name, reasoning="openai agent"))
         observation = result.observation
         print(
             f"[STEP] task={task_name} step={observation.step_count} "
@@ -90,4 +90,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
