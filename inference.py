@@ -10,13 +10,10 @@ from envs.support_env.server.environment import SupportTicketEnvironment
 from grader import grade_total_reward
 from tasks import TASKS
 
-client = None
-if os.getenv("OPENAI_API_KEY"):
-    client = OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        base_url=os.getenv("API_BASE_URL", "https://api.openai.com/v1"),
-    )
-model = os.getenv("MODEL_NAME", "gpt-4o-mini")
+client = OpenAI(
+    api_key=os.environ["API_KEY"],
+    base_url=os.environ["API_BASE_URL"],
+)
 
 ALLOWED_ACTIONS: tuple[ActionName, ...] = (
     "categorize_billing",
@@ -30,38 +27,28 @@ ALLOWED_ACTIONS: tuple[ActionName, ...] = (
 
 
 def get_action(observation: Dict[str, Any]) -> ActionName:
-    if client is None:
-        return "categorize_billing"
-
-    messages = [
-        {
-            "role": "system",
-            "content": "You are an expert customer support AI agent. Always choose the BEST next action.",
-        },
-        {
-            "role": "user",
-            "content": (
-                f"ticket text: {observation['ticket']}\n"
-                f"step count: {observation['step_count']}\n"
-                f"allowed actions: {', '.join(ALLOWED_ACTIONS)}"
-            ),
-        },
-    ]
-
     try:
         response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0,
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a support ticket classifier."},
+                {"role": "user", "content": observation["ticket"]},
+            ],
         )
-        action = response.choices[0].message.content.strip()
+        text = response.choices[0].message.content.lower()
     except Exception:
         return "categorize_billing"
 
-    normalized_action = action.strip()
-    if normalized_action not in ALLOWED_ACTIONS:
+    if "billing" in text:
+        action = "categorize_billing"
+    elif "technical" in text or "crash" in text or "bug" in text:
+        action = "categorize_technical"
+    else:
+        action = "categorize_general"
+
+    if action not in ALLOWED_ACTIONS:
         return "categorize_billing"
-    return normalized_action
+    return action
 
 
 def run_task(task_name: str, seed: int = 0) -> float:
