@@ -10,10 +10,12 @@ from envs.support_env.server.environment import SupportTicketEnvironment
 from grader import grade_total_reward
 from tasks import TASKS
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("API_BASE_URL", "https://api.openai.com/v1"),
-)
+client = None
+if os.getenv("OPENAI_API_KEY"):
+    client = OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url=os.getenv("API_BASE_URL", "https://api.openai.com/v1"),
+    )
 model = os.getenv("MODEL_NAME", "gpt-4o-mini")
 
 ALLOWED_ACTIONS: tuple[ActionName, ...] = (
@@ -28,6 +30,9 @@ ALLOWED_ACTIONS: tuple[ActionName, ...] = (
 
 
 def get_action(observation: Dict[str, Any]) -> ActionName:
+    if client is None:
+        return "categorize_billing"
+
     messages = [
         {
             "role": "system",
@@ -51,11 +56,11 @@ def get_action(observation: Dict[str, Any]) -> ActionName:
         )
         action = response.choices[0].message.content.strip()
     except Exception:
-        return "request_more_info"
+        return "categorize_billing"
 
     normalized_action = action.strip()
     if normalized_action not in ALLOWED_ACTIONS:
-        return "request_more_info"
+        return "categorize_billing"
     return normalized_action
 
 
