@@ -42,3 +42,7 @@ def health() -> dict[str, str]:
 @app.get("/state", response_model=State | None)
 def state() -> State | None:
     return environment.state()
+
+@app.get("/")
+def root():
+    return {"message": "API is running. Use http://127.0.0.1:8000/docs"}
