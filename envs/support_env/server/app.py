@@ -2,17 +2,13 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 
 from envs.support_env.models import AppConfig, Observation, ResetRequest, State, StepRequest, StepResult
 from envs.support_env.server.environment import SupportEnvAPIWrapper
 
 
-app = FastAPI(
-    title="Customer Support Ticket Resolution Environment",
-    description="OpenEnv-compatible support ticket simulation for reinforcement learning agents.",
-    version="1.0.0",
-)
+app = FastAPI()
 
 app.state.config = AppConfig(
     openai_api_key=os.getenv("OPENAI_API_KEY"),
@@ -24,13 +20,15 @@ environment = SupportEnvAPIWrapper()
 
 
 @app.post("/reset", response_model=Observation)
-def reset_environment(request: ResetRequest) -> Observation:
+def reset(payload: dict | None = Body(default=None)) -> Observation:
+    request = ResetRequest.model_validate(payload or {})
     return environment.reset(task_name=request.task_name, seed=request.seed)
 
 
 @app.post("/step", response_model=StepResult)
-def step_environment(request: StepRequest) -> StepResult:
+def step(action: dict = Body(...)) -> StepResult:
     try:
+        request = StepRequest.model_validate(action)
         return environment.step(request.action)
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -42,5 +40,5 @@ def health() -> dict[str, str]:
 
 
 @app.get("/state", response_model=State | None)
-def get_state() -> State | None:
+def state() -> State | None:
     return environment.state()
