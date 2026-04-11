@@ -1,23 +1,21 @@
 from __future__ import annotations
 
 
-def safe_score(score: float) -> float:
-    return float(max(0.01, min(0.99, score)))
-
-
 def grade_total_reward(total_reward: float) -> float:
     try:
-        normalized = total_reward / (abs(total_reward) + 1)
-        score = (normalized + 1) / 2
+        score = float(total_reward)
+
+        if score != score:  # NaN check
+            return 0.5
+
+        if score <= 0:
+            return 0.01
+        if score >= 1:
+            return 0.99
+
+        return max(0.01, min(0.99, score))
     except Exception:
-        score = 0.5
-
-    if score <= 0:
-        score = 0.01
-    elif score >= 1:
-        score = 0.99
-
-    return safe_score(score)
+        return 0.5
 
 
 if __name__ == "__main__":

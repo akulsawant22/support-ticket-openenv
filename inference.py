@@ -68,9 +68,12 @@ def run_task(task_name: str, seed: int = 0) -> float:
     final_state = env.state()
     if final_state is None:
         raise RuntimeError("Environment state missing after run.")
-    score = grade_total_reward(final_state.total_reward)
-    print(f"[END] {score}")
-    return score
+    total_reward = final_state.total_reward
+    final_score = grade_total_reward(total_reward)
+    print("RAW REWARD:", total_reward)
+    print("FINAL SCORE:", final_score)
+    print(f"[END] {final_score}")
+    return float(final_score)
 
 
 def main() -> None:
