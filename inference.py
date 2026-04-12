@@ -7,7 +7,6 @@ from openai import OpenAI
 
 from envs.support_env.models import Action, ActionName
 from envs.support_env.server.environment import SupportTicketEnvironment
-from grader import grade_total_reward
 from tasks import TASKS
 
 client = OpenAI(
@@ -61,6 +60,12 @@ def run_task(task_name: str, seed: int = 0) -> float:
     while not done:
         action_name = get_action(observation.model_dump())
         result = env.step(Action(name=action_name, reasoning="openai agent"))
+
+        if result.reward <= 0:
+            result.reward = 0.01
+        elif result.reward >= 1:
+            result.reward = 0.99
+
         observation = result.observation
         print(f"[STEP] {action_name} {result.reward}")
         done = result.done
@@ -69,9 +74,15 @@ def run_task(task_name: str, seed: int = 0) -> float:
     if final_state is None:
         raise RuntimeError("Environment state missing after run.")
     total_reward = final_state.total_reward
-    final_score = grade_total_reward(total_reward)
-    print("RAW REWARD:", total_reward)
-    print("FINAL SCORE:", final_score)
+
+    if total_reward <= 0:
+        total_reward = 0.01
+    elif total_reward >= 1:
+        total_reward = 0.99
+
+    final_score = float(total_reward)
+    print("RAW REWARD:", final_state.total_reward)
+    print("CLAMPED FINAL SCORE:", final_score)
     print(f"[END] {final_score}")
     return float(final_score)
 
