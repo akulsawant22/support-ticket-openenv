@@ -25,6 +25,10 @@ RESOLUTION_HINTS: Dict[ActionName, str] = {
 }
 
 
+def clamp_reward(value: float) -> float:
+    return max(0.01, min(0.99, round(value, 4)))
+
+
 @dataclass(frozen=True)
 class RewardBreakdown:
     classification_reward: float = 0.0
@@ -45,7 +49,7 @@ class RewardBreakdown:
     @property
     def total(self) -> float:
         raw = self.raw_total
-        return max(0.0, min(1.0, round(raw, 4)))
+        return clamp_reward(raw)
 
 
 class SupportTicketEnvironment:
@@ -85,7 +89,7 @@ class SupportTicketEnvironment:
         if self._state.done:
             return StepResult(
                 observation=self._observation(),
-                reward=0.0,
+                reward=0.01,
                 done=True,
                 info={"message": "Episode already finished."},
             )
@@ -139,10 +143,7 @@ class SupportTicketEnvironment:
             self._state.history.append("system:Maximum step budget reached.")
             info["episode_outcome"] = "max_steps_exceeded"
 
-        self._state.total_reward = max(
-            0.0,
-            min(1.0, round(self._state.total_reward + reward.raw_total, 4)),
-        )
+        self._state.total_reward = clamp_reward(self._state.total_reward + reward.raw_total)
         info["total_reward"] = self._state.total_reward
         info["raw_reward_delta"] = reward.raw_total
         return StepResult(
